@@ -18,54 +18,37 @@ public class ReflectionsTesting
 
         var pathToFolder = $"../../../../../../Exercism/csharp/{exerciseName}/";
         var code = File.ReadAllText($"{pathToFolder}/{exerciseFileName}.cs");
-        var tests= File.ReadAllText($"{pathToFolder}/{exerciseFileName}Tests.cs");
-        
-        // var syntaxTreeCode =
-        //     CSharpSyntaxTree.Create(SyntaxFactory.CompilationUnit(), default, $"{pathToFolder}/{exerciseFileName}.cs");
-        
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
-        // var scriptSyntaxTree = CSharpSyntaxTree.ParseText(code, parseOptions);
+        var tests = File.ReadAllText($"{pathToFolder}/{exerciseFileName}Tests.cs");
 
-        var syntaxTreeTests = CSharpSyntaxTree.Create(SyntaxFactory.CompilationUnit(), parseOptions,
-            $"{pathToFolder}/{exerciseFileName}Tests.cs");
-        
-        // var syntaxTreeTests =
-        //     CSharpSyntaxTree.ParseText(tests, parseOptions);
+        var syntaxTreeCode = SyntaxFactory.ParseSyntaxTree(code);
 
+        var syntaxTreeTests = SyntaxFactory.ParseSyntaxTree(tests);
 
         var options = new CSharpCompilationOptions(
             OutputKind.DynamicallyLinkedLibrary);
 
-        var compilation = CSharpCompilation.Create("tempAssembly",
-            new[]
-            {
-                // scriptSyntaxTree,
-                // syntaxTreeCode
-                syntaxTreeTests
-            },
-            // references: default,
-            new[]
-            {
-                MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(FactAttribute).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(Assert).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(SyntaxTree).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(AttributeUsageAttribute).Assembly.Location),
+        var assemblyLocation = typeof(object).Assembly.Location;
+        var metaReferenceToCurrentAssembly = MetadataReference.CreateFromFile(assemblyLocation);
 
-            },
+        var compilation = CSharpCompilation.Create(null,
+            syntaxTrees: [
+                syntaxTreeCode, 
+                // syntaxTreeTests
+            ],
+            references: [metaReferenceToCurrentAssembly],
             options: options
         );
 
         using var stream = new MemoryStream();
 
 
-        EmitResult result = compilation.Emit(stream);
+        var methodResult = compilation.Emit(stream);
 
         // Check if the compilation was successful
-        if (!result.Success)
+        if (!methodResult.Success)
         {
             // Handle compilation errors
-            foreach (Diagnostic diagnostic in result.Diagnostics)
+            foreach (Diagnostic diagnostic in methodResult.Diagnostics)
             {
                 Console.WriteLine($"Diagnostics: {diagnostic}");
                 return diagnostic.ToString();
@@ -73,27 +56,13 @@ public class ReflectionsTesting
         }
 
 
-        var exerciseAssembly = Assembly.Load(stream.ToArray());
+        var exerciseAssembly = Assembly.Load(stream.GetBuffer());
         // return exerciseAssembly.GetTypes().First(t => t.Name.EndsWith("Tests"));
         // Debug.WriteLine(exerciseAssembly.GetTypes().First());
 
         var assemblyType = exerciseAssembly.GetTypes().First();
-        
-
-        return assemblyType.ToString();
-
-        return "ok";
-        
-        
-        // var instance = Activator.CreateInstance(tests);
-
-        // foreach (var method in methods)
-        // {
-        //     var output = method.Invoke(instance, null);
-        //     results.Add(output.ToString());
-        // }
-
-
-        return results[0];
+        var method = assemblyType.GetMethods().First();
+        var output = method.Invoke(null, null);
+        return output.ToString();
     }
 }
