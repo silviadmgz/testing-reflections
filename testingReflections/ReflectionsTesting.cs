@@ -28,14 +28,27 @@ public class ReflectionsTesting
             OutputKind.DynamicallyLinkedLibrary);
 
         var assemblyLocation = typeof(object).Assembly.Location;
+        var xunitLocation = typeof(Assert).Assembly.Location;
+        var factAttributeLocation = typeof(FactAttribute).Assembly.Location;
+
         var metaReferenceToCurrentAssembly = MetadataReference.CreateFromFile(assemblyLocation);
+        var xunitMetaReferenceToCurrentAssembly = MetadataReference.CreateFromFile(xunitLocation);
+        var factAttributeMetaReferenceToCurrentAssembly = MetadataReference.CreateFromFile(factAttributeLocation);
+        var theoryAttributeMetaReferenceToCurrentAssembly =
+            MetadataReference.CreateFromFile(Assembly.Load("System.Runtime").Location);
 
         var compilation = CSharpCompilation.Create(null,
-            syntaxTrees: [
-                syntaxTreeCode, 
-                // syntaxTreeTests
+            syntaxTrees:
+            [
+                syntaxTreeCode,
+                syntaxTreeTests
             ],
-            references: [metaReferenceToCurrentAssembly],
+            references:
+            [
+                metaReferenceToCurrentAssembly, xunitMetaReferenceToCurrentAssembly,
+                factAttributeMetaReferenceToCurrentAssembly,
+                theoryAttributeMetaReferenceToCurrentAssembly
+            ],
             options: options
         );
 
@@ -55,14 +68,21 @@ public class ReflectionsTesting
             }
         }
 
-
         var exerciseAssembly = Assembly.Load(stream.GetBuffer());
-        // return exerciseAssembly.GetTypes().First(t => t.Name.EndsWith("Tests"));
-        // Debug.WriteLine(exerciseAssembly.GetTypes().First());
 
-        var assemblyType = exerciseAssembly.GetTypes().First();
-        var method = assemblyType.GetMethods().First();
-        var output = method.Invoke(null, null);
-        return output.ToString();
+        var testClass = exerciseAssembly.GetTypes().First(t => t.Name.EndsWith("Tests"));
+        var instance = Activator.CreateInstance(testClass);
+
+        var methods = testClass.GetMethods();
+
+        List<string> testResults = new();
+
+        foreach (var test in methods)
+        {
+            var output = test.Invoke(instance, null);
+            testResults.Add(output.ToString());
+        }
+
+        return testResults.ToString();
     }
 }
