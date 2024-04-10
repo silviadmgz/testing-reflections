@@ -1,8 +1,6 @@
 ﻿using System.Reflection;
-using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Emit;
 using Xunit;
 
 namespace testingReflections;
@@ -11,7 +9,6 @@ public class ReflectionsTesting
 {
     public string GetAttributes(string exerciseName)
     {
-        List<string> results = new();
         var exerciseFileName = string.Concat(exerciseName
             .Split('-')
             .Select(word => char.ToUpper(word[0]) + word.Substring(1)));
@@ -34,7 +31,7 @@ public class ReflectionsTesting
         var metaReferenceToCurrentAssembly = MetadataReference.CreateFromFile(assemblyLocation);
         var xunitMetaReferenceToCurrentAssembly = MetadataReference.CreateFromFile(xunitLocation);
         var factAttributeMetaReferenceToCurrentAssembly = MetadataReference.CreateFromFile(factAttributeLocation);
-        var theoryAttributeMetaReferenceToCurrentAssembly =
+        var runtimeMetaReferenceToCurrentAssembly =
             MetadataReference.CreateFromFile(Assembly.Load("System.Runtime").Location);
 
         var compilation = CSharpCompilation.Create(null,
@@ -47,7 +44,7 @@ public class ReflectionsTesting
             [
                 metaReferenceToCurrentAssembly, xunitMetaReferenceToCurrentAssembly,
                 factAttributeMetaReferenceToCurrentAssembly,
-                theoryAttributeMetaReferenceToCurrentAssembly
+                runtimeMetaReferenceToCurrentAssembly,
             ],
             options: options
         );
@@ -57,10 +54,8 @@ public class ReflectionsTesting
 
         var methodResult = compilation.Emit(stream);
 
-        // Check if the compilation was successful
         if (!methodResult.Success)
         {
-            // Handle compilation errors
             foreach (Diagnostic diagnostic in methodResult.Diagnostics)
             {
                 Console.WriteLine($"Diagnostics: {diagnostic}");
@@ -71,7 +66,7 @@ public class ReflectionsTesting
         var exerciseAssembly = Assembly.Load(stream.GetBuffer());
 
         var testClass = exerciseAssembly.GetTypes().First(t => t.Name.EndsWith("Tests"));
-        var instance = Activator.CreateInstance(testClass);
+        var instance = Activator.CreateInstance(testClass, null);
 
         var methods = testClass.GetMethods();
 

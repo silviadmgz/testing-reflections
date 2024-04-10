@@ -8,7 +8,7 @@ public class UnitTest1
     public void Test1()
     {
         var instance = new ReflectionsTesting();
-        var result = instance.GetAttributes("hello-world");
+        var result = instance.GetAttributes("faceid-2");
 
         result.Should().Be("Silvia");
     }
